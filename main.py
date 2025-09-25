@@ -57,8 +57,16 @@ def refine_corpus_data(book_word_counts, corpus_words_df, corpus_data_filepath):
 #It returns the sum of all these frequencies
 def corpus_word_freq(input_word, corpus_word_indices_df, corpus_data_filepath):
     total_word_freq = 0
+
+    #words.replace("’", "'")
+    #words.replace("n't", " not")
+    #words.replace("'", " '")
+    #words.replace("-", " - ")
+
+
+
     word_indices = corpus_word_indices_df.index[(corpus_word_indices_df["Word"].str.casefold() == input_word.casefold())]
-    col_names = list(range(1000))
+    col_names = list(range(1000))       # Creates excess columns to ensure all the data is extracted
 
     num_of_words = list(range(len(corpus_word_indices_df.index))) #TODO take num_of_words as input?
     skip_indices = [nums for nums in num_of_words if nums not in word_indices]
@@ -80,56 +88,55 @@ def corpus_word_freq(input_word, corpus_word_indices_df, corpus_data_filepath):
     print("Word =", input_word, "and count =", total_word_freq)
     return total_word_freq
 
-def chapter_to_word_list(chapter):
-    #chapter to string
-    html = BeautifulSoup(chapter.get_body_content(), "html.parser")
-    text = [paragraph.get_text() for paragraph in html.find_all("p")]
-    string = ' '.join(text)
-    # test line
-
-    #string to word list (removes punctuation other than apostrophes)
-    #word_list = re.findall(r"\b\w+(?:['’]\w+)*\b", string)
-
-    #word_list = re.findall(r"\b(([a-zA-Z-'’])+s['’]|([a-zA-Z-'’])+\b)", string)
-    word_list = re.findall(r"\b[a-zA-Z][a-zA-Z-'’]*s['’]|[a-zA-Z][a-zA-Z-'’]*\b", string)
-    return word_list
-
-#Opens an epub file and returns a list contain all the words from each chapter
-def read_epub(epub_filepath):
+# Opens an epub file and returns the text from each chapter as a single string
+def epub_to_str(epub_filepath):
     book = ebooklib.epub.read_epub(epub_filepath)
-    book_word_list = []
+    chapter_strings = []
     for chapter in book.get_items_of_type(ebooklib.ITEM_DOCUMENT): #TODO Identify chapters better
-        book_word_list += chapter_to_word_list(chapter)
-    return book_word_list
+        html = BeautifulSoup(chapter.get_body_content(), "html.parser")
+        text = [paragraph.get_text() for paragraph in html.find_all("p")]
+        string = ' '.join(text)
+        chapter_strings.append(string)
+    book_string = ' '.join(chapter_strings)
+    book_string = ' '.join(book_string.split())
+    return book_string
 
 #Takes a list of words and outputs an ordered dictionary of the form {word: frequency}. Words (and their corresponding
 # frequencies) that differ only by case are merged. The form that appears most frequently is used as the key.
-def count_words(book_word_list):
-    initial_words_data = collections.Counter(book_word_list)
+def str_to_counted_data(book_string):
+    word_list = re.findall(r"\b[a-zA-Z][a-zA-Z-'’]*s['’]|[a-zA-Z][a-zA-Z-'’]*\b", book_string)
+    #word_list = re.findall(r"\b\w+(?:['’]\w+)*\b", string)
+    #word_list = re.findall(r"\b(([a-zA-Z-'’])+s['’]|([a-zA-Z-'’])+\b)", string)
+    proper_nouns = re.findall(r"(?<![.!?] )\b[A-Z][a-z'’-]*\b", book_string)
+
+    full_counted_words = collections.Counter(word_list)
+    counted_proper_nouns = collections.Counter(proper_nouns)
+
+    filtered_counted_words = full_counted_words
+    for key in counted_proper_nouns.keys():
+        filtered_counted_words[key] = full_counted_words[key] - counted_proper_nouns[key]
+        if filtered_counted_words[key] == 0:
+            del filtered_counted_words[key]
+
+    #TODO figure out quote/apostrophe merging
+    merged_full_counted_words = merge_word_data(full_counted_words)
+    merged_filtered_counted_words = merge_word_data(filtered_counted_words)
+
+    #potential_proper_nouns = [words for words in merged_counted_words.keys() if re.match(r"[A-Z][a-z'’-]*", words)]
+    return merged_full_counted_words, merged_filtered_counted_words, proper_nouns
+
+def merge_word_data(counted_word_data):
     merged_words_data = {}
     temp_key_list = []
-    for key in initial_words_data:
+    for key in counted_word_data:
         if key.casefold() in temp_key_list:
             word_index = temp_key_list.index(key.casefold())
             word = list(merged_words_data)[word_index]
-            merged_words_data[word] += initial_words_data[key]
+            merged_words_data[word] += counted_word_data[key]
         else:
-            merged_words_data.update({key: initial_words_data[key]})
+            merged_words_data.update({key: counted_word_data[key]})
             temp_key_list.append(key.casefold())
-    #Alphabetically sorting keys
-    key_list = list(merged_words_data.keys())      #TODO fix sort for capitals
-    key_list.sort()
-    partial_sorted_words_data = {key: merged_words_data[key] for key in key_list}
-
-    #Numerically sorting values
-    sorted_words_data = {key: value for key, value in sorted(partial_sorted_words_data.items(),
-                                                             key=lambda item: item[1], reverse=True)}
-    return sorted_words_data
-
-
-
-
-
+    return merged_words_data
 
 def create_words_df(sorted_words_data, corpus_data_filepath, corpus_counts_filepath):
     corpus_word_indices_df, corpus_total_count = get_corpus_data(corpus_data_filepath, corpus_counts_filepath)
@@ -170,29 +177,15 @@ def df_to_excel(input_df, file_name):
 
 def epub_to_excel(epub_filepath, corpus_data_filepath, corpus_counts_filepath):
     print("Starting process")
-    book_word_list = read_epub(epub_filepath)
+    book_string = epub_to_str(epub_filepath)
     print("Book word list obtained")
-    sorted_words_data = count_words(book_word_list)
+    merged_full_counted_words, merged_filtered_counted_words, proper_nouns = str_to_counted_data(book_string)
     print("Sorted word data obtained")
 
-    final_words_df = create_words_df(sorted_words_data, corpus_data_filepath, corpus_counts_filepath)
+    final_words_df = create_words_df(merged_full_counted_words, corpus_data_filepath, corpus_counts_filepath)
     df_to_excel(final_words_df, "WordFrequencies2.xlsx")
     print(final_words_df)
     return
-#
-
-def better_epub_to_excel(epub_filepath):
-    book_text = epub_to_text(epub_filepath)
-    book_word_list = text_to_word_list(book_text)
-    sorted_words_data = count_words(book_word_list)
-
-    final_words_df = create_words_df(sorted_words_data)
-    #df_to_excel(final_words_df, "WordFrequencies2.xlsx")
-    print(final_words_df)
-    return
-
-#corpusWordIndices, corpusTotalCountValue = get_corpus_data("1-00000-of-00001", "totalcounts-1")
-#corpus_word_freq("don't", corpusWordIndices)
 
 
 epub_to_excel(epubFilepath2, corpusDataFilepath, corpusCountFilepath)
@@ -214,4 +207,11 @@ epub_to_excel(epubFilepath2, corpusDataFilepath, corpusCountFilepath)
 #TODO Verify filepaths
 
 
+# Alphabetically sorting keys
+#key_list = list(merged_words_data.keys())  # TODO fix sort for capitals
+#key_list.sort()
+#partial_sorted_words_data = {key: merged_words_data[key] for key in key_list}
 
+# Numerically sorting values
+#sorted_words_data = {key: value for key, value in sorted(partial_sorted_words_data.items(),
+#                                                         key=lambda item: item[1], reverse=True)}
