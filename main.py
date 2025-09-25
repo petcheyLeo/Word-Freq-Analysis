@@ -7,8 +7,10 @@ import re
 from bs4 import BeautifulSoup
 
 
-#Defining necessary variables
-#Corpus info from https://storage.googleapis.com/books/ngrams/books/20200217/eng-fiction/eng-fiction-1-ngrams_exports.html
+# Defining necessary variables
+# Corpus info from: English Fiction Version 20200217
+# https://storage.googleapis.com/books/ngrams/books/20200217/eng-fiction/eng-fiction-1-ngrams_exports.html
+
 corpusDataFilepath = "1-00000-of-00001"
 corpusCountFilepath = "totalcounts-1"
 epubFilepath1 = "short_fiction_story.epub"
@@ -56,16 +58,26 @@ def refine_corpus_data(book_word_counts, corpus_words_df, corpus_data_filepath):
 def corpus_word_freq(input_word, corpus_word_indices_df, corpus_data_filepath):
     total_word_freq = 0
     word_indices = corpus_word_indices_df.index[(corpus_word_indices_df["Word"].str.casefold() == input_word.casefold())]
-    for word_index in word_indices: #TODO Try to do without a loop (add 1k names, then remove excess cols?)
-        word_data = pd.read_table(corpus_data_filepath, header=None, quoting=csv.QUOTE_NONE,
-                                  skiprows=word_index, nrows=1, index_col=0, dtype=str)
-        word_data = word_data.iloc[0]
-        word_data_selected_years = word_data[(word_data.str[:4].astype(int).ge(initialSearchYear) &
-                                              word_data.str[:4].astype(int).le(finalSearchYear))]
+    col_names = list(range(1000))
+
+    num_of_words = list(range(len(corpus_word_indices_df.index))) #TODO take num_of_words as input?
+    skip_indices = [nums for nums in num_of_words if nums not in word_indices]
+
+    word_data = pd.read_table(corpus_data_filepath, header=None, quoting=3, names=col_names,
+                              skiprows=skip_indices, nrows=len(word_indices), index_col=0, dtype=str)
+    word_data = word_data.dropna(axis=1, how='all')
+    word_data = word_data.T
+
+    for col in word_data:  #TODO rename variables
+        temp_word_data = word_data[col].dropna()
+
+        word_data_selected_years = temp_word_data[(temp_word_data.str[:4].astype(int).ge(initialSearchYear) &
+                                              temp_word_data.str[:4].astype(int).le(finalSearchYear))]
         word_freq_selected_years = word_data_selected_years.str.split(",").str[1].astype(int)
         word_freq = sum(word_freq_selected_years)
-        print("Index =", word_index,"and word =", corpus_word_indices_df.loc[word_index,"Word"], "and count =", word_freq)
         total_word_freq += word_freq
+
+    print("Word =", input_word, "and count =", total_word_freq)
     return total_word_freq
 
 def chapter_to_word_list(chapter):
@@ -127,9 +139,6 @@ def create_words_df(sorted_words_data, corpus_data_filepath, corpus_counts_filep
     print(corpus_word_indices_df.info())
     corpus_word_indices_df, corpus_data_filepath = refine_corpus_data(sorted_words_data, corpus_word_indices_df, corpus_data_filepath)
     print(corpus_word_indices_df.info())
-
-#DoN'T has index 138917
-
 
     transposed_words_df_data = {}
     for key, value in sorted_words_data.items():
