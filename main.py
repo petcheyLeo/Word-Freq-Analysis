@@ -5,6 +5,7 @@ from ebooklib import epub
 import collections
 import re
 from bs4 import BeautifulSoup
+import time
 
 
 # Defining necessary variables
@@ -259,12 +260,14 @@ def epub_to_excel(epub_filepath):
     print("Book word list obtained")
     merged_full_counted_words, merged_filtered_counted_words, counted_proper_nouns = str_to_counted_data(book_string)
     print("Sorted word data obtained")
-    refine_corpus_data(merged_full_counted_words)
+    #refine_corpus_data(merged_full_counted_words)
     print("Corpus data refined")
-
+    start = time.time()
     final_words_df = create_words_df(merged_full_counted_words, merged_filtered_counted_words)
-    df_to_excel(final_words_df, "WordFrequencies3.xlsx")
+    #df_to_excel(final_words_df, "WordFrequencies3.xlsx")
     print(final_words_df)
+    end = time.time()
+    print(end - start)
     return
 
 
