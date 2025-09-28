@@ -5,6 +5,7 @@ from ebooklib import epub
 import collections
 import re
 from bs4 import BeautifulSoup
+import numpy as np
 import time
 
 
@@ -75,14 +76,14 @@ def standardise_word(word):
     standard_word = standard_word.replace("’", "'")
     if standard_word == "ain't":
         standard_word = "is not"
-    elif standard_word == "can't":
+    elif standard_word == "can't" or standard_word == "cannot":
         standard_word = "can not"
     elif standard_word == "shan't":
         standard_word = "shall not"
     elif standard_word == "won't":
         standard_word = "will not"
     standard_word = standard_word.replace("n't", " not")
-    standard_word = standard_word.replace("'", " '")
+    standard_word = standard_word.replace("'", " '") #TODO "o'clock" is not separated
     standard_word = standard_word.replace("-", " - ")
     return standard_word
 
@@ -128,7 +129,7 @@ def corpus_word_freq(input_word, corpus_word_indices_df_triple):
     total_word_freq = 0
     standard_input_word = standardise_word(input_word)
     n = len(standard_input_word.split())
-    if n not in [0,1,2]:
+    if n not in [1, 2, 3]:
         return 0, 1
     else:
         corpus_word_indices_df = corpus_word_indices_df_triple[n-1]
@@ -140,9 +141,10 @@ def corpus_word_freq(input_word, corpus_word_indices_df_triple):
         num_of_words = list(range(len(corpus_word_indices_df.index)))
         skip_indices = [nums for nums in num_of_words if nums not in word_indices]
 
-        word_data = pd.read_table(corpus_data_filepath, header=None, quoting=3, names=col_names,
+        word_data = pd.read_table(corpus_data_filepath, header=None, names=col_names,
                                   skiprows=skip_indices, nrows=len(word_indices), index_col=0, dtype=str)
         word_data = word_data.dropna(axis=1, how='all')
+        word_data = word_data.set_index(np.arange(word_data.shape[0]))
         word_data = word_data.T
 
         for col in word_data:  #TODO rename variables
@@ -260,19 +262,16 @@ def epub_to_excel(epub_filepath):
     print("Book word list obtained")
     merged_full_counted_words, merged_filtered_counted_words, counted_proper_nouns = str_to_counted_data(book_string)
     print("Sorted word data obtained")
-    #refine_corpus_data(merged_full_counted_words)
+    refine_corpus_data(merged_full_counted_words)
     print("Corpus data refined")
-    start = time.time()
     final_words_df = create_words_df(merged_full_counted_words, merged_filtered_counted_words)
-    #df_to_excel(final_words_df, "WordFrequencies3.xlsx")
+    df_to_excel(final_words_df, "WordFrequenciesFull.xlsx")
     print(final_words_df)
-    end = time.time()
-    print(end - start)
     return
 
 
 epub_to_excel(r"Input Documents/Waybound Cradle Book 12 Will Wight Z-Library.epub")
-
+#TODO Multiprocessing
 
 
 #TODO fix file names for excel output

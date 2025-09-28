@@ -1,5 +1,7 @@
 import re
 import os
+import requests
+from bs4 import BeautifulSoup
 
 
 
@@ -42,51 +44,24 @@ with open(r"Corpus Data\Refined Data\refined_corpus_data_file", 'r') as f:
 
 
 folder = os.scandir(r"Corpus Data\Total Counts")
-
-for file in folder:
-    print(file)
-
-x1 = 2
-x2 = 3
-x3 = 7
+url = r"http://storage.googleapis.com/books/ngrams/books/20200217/eng-fiction/eng-fiction-3-ngrams_exports.html"
+page = requests.get(url).text
 
 
-for n in range(1,4):
-    print(n)
+soup = BeautifulSoup(page, 'html.parser')
 
-test = "aAbt't-rw’f G"
-print(test.casefold().split())
-print(type("bob".split()))
+links = [url + '/' + node.get('href') for node in soup.find_all('a') if node.get('href').endswith('gz')]
 
+print(links)
 
-list1 = [1,2,4]
-list2 = [1,2,4]
+print(os.path.join("", "corpus data"))
 
-print(list1 == list2)
+#html = BeautifulSoup(content.get_body_content(), "html.parser")
+#print(html)
 
-def add(a,b):
-    result = int(a)+int(b)
-    return result
+test = ["dog"]
 
-print(add(1,1))
-
-Fun = (add(1,2), add(4,7))
-print(Fun)
-
-n = 5
-
-print("Bob" + str(n+1))
-
-dictionary = {"Car": "Broken", "Age": 10}
-for key in dictionary.keys():
-    print(key)
-
-k = "Don't"
-k = k.replace("D","W")
-print(k)
-
-
-
+print(test[0])
 
 
 
