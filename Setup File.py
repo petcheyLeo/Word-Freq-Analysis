@@ -121,20 +121,6 @@ def condition_3_gram(word): #TODO allow not as final word I'mn't
     return False
 
 
-
-
-
-    # elif split_word[0].isalpha() is not True:
-    #     return False
-    # if split_word[1][0] == "'" or split_word[1].casefold() == "not":
-    #     if word.islower():
-    #         return True #TODO no need to string slice
-    #     elif split_word[0].istitle() and (split_word[1].islower() or (split_word[1][0] == "'" and split_word[1][1:].istitle())):
-    #         return True
-    #     elif word.isupper():
-    #         return True
-    #     return False
-
 def download_2020_corpus(corpus_index):
     corpus_identifier = corpus_identifiers[corpus_index]
     corpus_name = corpus_names[corpus_index]
@@ -205,6 +191,7 @@ while corpus_choice not in corpus_identifiers.keys():
 #download_file(,r"Corpus Data\1-gram Data")
 download_2020_corpus(corpus_choice)
 
+#TODO 4/5-grams, and store n-grams as a single file
 
 # def download_extract_gz(url):
 #     local_filename = url.split('/')[-1]
